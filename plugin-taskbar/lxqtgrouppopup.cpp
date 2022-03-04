@@ -36,6 +36,7 @@
 #include <QPainter>
 #include <QStyleOption>
 #include <QDebug>
+#include <unistd.h>
 
 /************************************************
     this class is just a container of window buttons
@@ -44,22 +45,17 @@
     group
  ************************************************/
 LXQtGroupPopup::LXQtGroupPopup(LXQtTaskGroup *group):
-    QFrame(group),
-    mGroup(group)
+    QFrame(mGroup = group),
+    mLayout(this)
 {
-    Q_ASSERT(group);
+    Q_ASSERT(mGroup);
     setAcceptDrops(true);
     setWindowFlags(Qt::FramelessWindowHint | Qt::ToolTip);
     setAttribute(Qt::WA_AlwaysShowToolTips);
     setAttribute(Qt::WA_TranslucentBackground);
 
-    setLayout(new QVBoxLayout);
-    layout()->setSpacing(3);
-    layout()->setMargin(3);
-
-    connect(&mCloseTimer, &QTimer::timeout, this, &LXQtGroupPopup::closeTimerSlot);
-    mCloseTimer.setSingleShot(true);
-    mCloseTimer.setInterval(400);
+    mLayout.setSpacing(3);
+    mLayout.setMargin(3);
 }
 
 LXQtGroupPopup::~LXQtGroupPopup() = default;
@@ -131,7 +127,8 @@ void LXQtGroupPopup::dragLeaveEvent(QDragLeaveEvent *event)
  ************************************************/
 void LXQtGroupPopup::leaveEvent(QEvent * /*event*/)
 {
-    mCloseTimer.start();
+    if (!mCloseTimerId)
+        mCloseTimerId = startTimer(400);
 }
 
 /************************************************
@@ -139,7 +136,8 @@ void LXQtGroupPopup::leaveEvent(QEvent * /*event*/)
  ************************************************/
 void LXQtGroupPopup::enterEvent(QEvent * /*event*/)
 {
-    mCloseTimer.stop();
+    killTimer(mCloseTimerId);
+    mCloseTimerId = 0;
 }
 
 void LXQtGroupPopup::paintEvent(QPaintEvent * /*event*/)
@@ -155,23 +153,28 @@ void LXQtGroupPopup::hide(bool fast)
     if (fast)
         close();
     else
-        mCloseTimer.start();
+        leaveEvent(nullptr);
 }
 
 void LXQtGroupPopup::show()
 {
-    mCloseTimer.stop();
+    enterEvent(nullptr);
     QFrame::show();
 }
 
-void LXQtGroupPopup::closeTimerSlot()
+void LXQtGroupPopup::timerEvent(QTimerEvent * /*event*/)
 {
+    for (auto * const widget : findChildren<LXQtTaskButton *>())
+    {
+        if (widget->menu())
+            return;
+    }
     bool button_has_dnd_hover = false;
     QLayout* l = layout();
-    for (int i = 0; l->count() > i; ++i)
+    for (int i = l->count(); i--;)
     {
-        LXQtTaskButton const * const button = dynamic_cast<LXQtTaskButton const *>(l->itemAt(i)->widget());
-        if (nullptr != button && button->hasDragAndDropHover())
+        auto * const button = reinterpret_cast<LXQtTaskButton const *>(l->itemAt(i)->widget());
+        if (button && button->hasDragAndDropHover())
         {
             button_has_dnd_hover = true;
             break;

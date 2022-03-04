@@ -248,12 +248,10 @@ void LayoutItemGrid::doAddToGrid(QLayoutItem *item)
         mNextRow++;
     }
 
-    int cnt = (mNextRow + 1 ) * mColCount;
-    if (mInfoItems.count() <= cnt)
-        mInfoItems.resize(cnt);
-
     int idx = mNextRow * mColCount + mNextCol;
-    mInfoItems[idx] = info;
+    if (mInfoItems.size() <= idx)
+        mInfoItems.resize(idx + 1);
+    mInfoItems.replace(idx, info);
     mUsedColCount = qMax(mUsedColCount, mNextCol + 1);
     mExpandable = mExpandable || info.expandable;
     mRowCount = qMax(mRowCount, mNextRow+1);

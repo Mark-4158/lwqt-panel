@@ -40,7 +40,6 @@
 
 #include <QScreen>
 #include <QWindow>
-#include <QX11Info>
 #include <QDebug>
 #include <QString>
 #include <QMenu>
@@ -50,7 +49,6 @@
 #include <XdgDirs>
 
 #include <KWindowSystem/KWindowSystem>
-#include <KWindowSystem/NETWM>
 
 // Turn on this to show the time required to load each plugin during startup
 // #define DEBUG_PLUGIN_LOADTIME
@@ -231,10 +229,8 @@ LXQtPanel::LXQtPanel(const QString &configGroup, LXQt::Settings *settings, QWidg
 
     loadPlugins();
 
-    // NOTE: Some (X11) WMs may need the geometry to be set before QWidget::show().
-    setPanelGeometry();
-
     show();
+    realign();
 
     // show it the first time, despite setting
     if (mHidable)
@@ -420,7 +416,11 @@ LXQtPanel::~LXQtPanel()
 void LXQtPanel::show()
 {
     QWidget::show();
-    KWindowSystem::setOnDesktop(effectiveWinId(), NET::OnAllDesktops);
+    if (WId wid = effectiveWinId())
+    {
+        KWindowSystem::setType(wid, NET::Dock);
+        KWindowSystem::setOnDesktop(wid, NET::OnAllDesktops);
+    }
 }
 
 
@@ -1115,31 +1115,42 @@ bool LXQtPanel::event(QEvent *event)
         break;
 
     case QEvent::WinIdChange:
-    {
-        // qDebug() << "WinIdChange" << hex << effectiveWinId();
-        if(effectiveWinId() == 0)
-            break;
-
-        // Sometimes Qt needs to re-create the underlying window of the widget and
-        // the winId() may be changed at runtime. So we need to reset all X11 properties
-        // when this happens.
-            qDebug() << "WinIdChange" << Qt::hex << effectiveWinId() << "handle" << windowHandle() << windowHandle()->screen();
-
-        // Qt::WA_X11NetWmWindowTypeDock becomes ineffective in Qt 5
-        // See QTBUG-39887: https://bugreports.qt-project.org/browse/QTBUG-39887
-        // Let's use KWindowSystem for that
-        KWindowSystem::setType(effectiveWinId(), NET::Dock);
-
-        updateWmStrut(); // reserve screen space for the panel
-        KWindowSystem::setOnAllDesktops(effectiveWinId(), true);
+        mUpdateStrut = effectiveWinId();
         break;
-    }
+    case QEvent::UpdateRequest:
+        if (WId wid = effectiveWinId())
+        {
+            KWindowInfo info(wid, NET::WMGeometry);
+
+            if (info.valid())
+            {
+                if (info.geometry() == geometry())
+                {
+                    for (auto *menu : findChildren<QMenu *>())
+                    {
+                        if (!menu->isHidden())
+                        {
+                            KWindowSystem::forceActiveWindow(wid);
+                            break;
+                        }
+                    }
+                }
+
+                if (mUpdateStrut)
+                {
+                    mUpdateStrut = false;
+                    KWindowSystem::setType(wid, NET::Dock);
+                    KWindowSystem::setOnDesktop(wid, NET::OnAllDesktops);
+                    realign();
+                }
+            }
+        }
+        break;
+
     case QEvent::DragEnter:
         dynamic_cast<QDropEvent *>(event)->setDropAction(Qt::IgnoreAction);
         event->accept();
-#if __cplusplus >= 201703L
-        [[fallthrough]];
-#endif
+        Q_FALLTHROUGH();
         // fall through
     case QEvent::Enter:
         mShowDelayTimer.start();

@@ -694,6 +694,11 @@ private:
     bool mLockPanel;
 
     /**
+     * @brief Flag for updating the panel's strut
+     */
+    bool mUpdateStrut;
+
+    /**
      * @brief Updates the style sheet for the panel. First, the stylesheet is
      * created from the preferences. Then, it is set via
      * QWidget::setStyleSheet().

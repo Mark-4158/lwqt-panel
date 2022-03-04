@@ -67,12 +67,13 @@ protected:
     void leaveEvent(QEvent * event);
     void enterEvent(QEvent * event);
     void paintEvent(QPaintEvent * event);
-
-    void closeTimerSlot();
+    void timerEvent(QTimerEvent * event);
 
 private:
     LXQtTaskGroup *mGroup;
-    QTimer mCloseTimer;
+    int mCloseTimerId;
+    int mWindowCount;
+    QVBoxLayout mLayout;
 };
 
 #endif // LXQTTASKPOPUP_H

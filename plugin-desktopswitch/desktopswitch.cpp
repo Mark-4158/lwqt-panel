@@ -49,9 +49,15 @@ DesktopSwitch::DesktopSwitch(const ILXQtPanelPluginStartupInfo &startupInfo) :
     m_desktopCount(KWindowSystem::numberOfDesktops()),
     mRows(-1),
     mShowOnlyActive(false),
-    mDesktops(new NETRootInfo(QX11Info::connection(), NET::NumberOfDesktops | NET::CurrentDesktop | NET::DesktopNames, NET::WM2DesktopLayout)),
     mLabelType(static_cast<DesktopSwitchButton::LabelType>(-1))
 {
+    if (auto *x11conn = QX11Info::connection())
+        mDesktops.reset(new NETRootInfo(x11conn,
+                                        (NET::NumberOfDesktops |
+                                         NET::CurrentDesktop |
+                                         NET::DesktopNames),
+                                        NET::WM2DesktopLayout));
+
     m_buttons = new QButtonGroup(this);
 
     connect (m_pSignalMapper, &QSignalMapper::mappedInt, this, &DesktopSwitch::setDesktop);
@@ -118,15 +124,11 @@ void DesktopSwitch::onWindowChanged(WId id, NET::Properties properties, NET::Pro
 {
     if (properties.testFlag(NET::WMState) && isWindowHighlightable(id))
     {
-        KWindowInfo info = KWindowInfo(id, NET::WMDesktop | NET::WMState);
-        int desktop = info.desktop();
-        if (!info.valid() || info.onAllDesktops())
-            return;
-        else
+        KWindowInfo info(id, NET::WMDesktop | NET::WMState);
+        if (info.valid())
         {
-            DesktopSwitchButton *button = static_cast<DesktopSwitchButton *>(m_buttons->button(desktop - 1));
-            if(button)
-                button->setUrgencyHint(id, info.hasState(NET::DemandsAttention));
+            if (auto *button = m_buttons->button(info.desktop()))
+                reinterpret_cast<DesktopSwitchButton *>(button)->setUrgencyHint(id, info.hasState(NET::DemandsAttention));
         }
     }
 }
@@ -144,10 +146,10 @@ void DesktopSwitch::refresh()
     {
         DesktopSwitchButton * button = qobject_cast<DesktopSwitchButton*>(btns[i]);
         button->update(i, mLabelType,
-                       KWindowSystem::desktopName(i + 1).isEmpty() ?
+                       KWindowSystem::desktopName(i).isEmpty() ?
                        tr("Desktop %1").arg(i + 1) :
-                       KWindowSystem::desktopName(i + 1));
-        button->setVisible(!mShowOnlyActive || i + 1 == current_desktop);
+                       KWindowSystem::desktopName(i));
+        button->setVisible(!mShowOnlyActive || i == current_desktop);
     }
 
     //create new buttons (if neccessary)
@@ -155,12 +157,12 @@ void DesktopSwitch::refresh()
     for ( ; i < m_desktopCount; ++i)
     {
         b = new DesktopSwitchButton(&mWidget, i, mLabelType,
-                KWindowSystem::desktopName(i+1).isEmpty() ?
+                KWindowSystem::desktopName(i).isEmpty() ?
                 tr("Desktop %1").arg(i+1) :
-                KWindowSystem::desktopName(i+1));
+                KWindowSystem::desktopName(i));
         mWidget.layout()->addWidget(b);
         m_buttons->addButton(b, i);
-        b->setVisible(!mShowOnlyActive || i + 1 == current_desktop);
+        b->setVisible(!mShowOnlyActive || i == current_desktop);
     }
 
     //delete unneeded buttons (if neccessary)
@@ -214,7 +216,7 @@ DesktopSwitch::~DesktopSwitch() = default;
 
 void DesktopSwitch::setDesktop(int desktop)
 {
-    KWindowSystem::setCurrentDesktop(desktop + 1);
+    KWindowSystem::setCurrentDesktop(desktop);
 }
 
 void DesktopSwitch::onNumberOfDesktopsChanged(int count)
@@ -229,24 +231,21 @@ void DesktopSwitch::onCurrentDesktopChanged(int current)
     if (mShowOnlyActive)
     {
         mLayout->setEnabled(false);
-        int i = 1;
-        const auto buttons = m_buttons->buttons();
-        for (const auto button : buttons)
+        for (const auto &button : m_buttons->buttons())
         {
-            if (current == i)
+            if (current--)
+            {
+                button->setVisible(false);
+            } else
             {
                 button->setChecked(true);
                 button->setVisible(true);
-            } else
-            {
-                button->setVisible(false);
             }
-            ++i;
         }
         mLayout->setEnabled(true);
     } else
     {
-        QAbstractButton *button = m_buttons->button(current - 1);
+        QAbstractButton *button = m_buttons->button(current);
         if (button)
             button->setChecked(true);
     }
@@ -269,7 +268,7 @@ void DesktopSwitch::settingsChanged()
     mRows = rows;
     mShowOnlyActive = show_only_active;
     mLabelType = static_cast<DesktopSwitchButton::LabelType>(label_type);
-    if (need_realign)
+    if (need_realign && mDesktops)
     {
         // WARNING: Changing the desktop layout may call "LXQtPanel::realign", which calls
         // "DesktopSwitch::realign()". Therefore, the desktop layout should not be changed
