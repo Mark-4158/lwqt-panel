@@ -95,6 +95,8 @@ private slots:
     void onActiveWindowChanged(WId window);
     void onDesktopChanged(int number);
 
+    void unminimizeGroup();
+    void minimizeGroup();
     void closeGroup();
     void refreshIconsGeometry();
     void refreshVisibility();

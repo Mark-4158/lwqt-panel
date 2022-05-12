@@ -78,16 +78,53 @@ void LXQtTaskGroup::contextMenuEvent(QContextMenuEvent *event)
         return;
     }
     mPreventPopup = true;
-    QMenu * menu = new QMenu(tr("Group"));
+    QMenu *menu = new QMenu(tr("Group"), this);
     menu->setAttribute(Qt::WA_DeleteOnClose);
-    QAction *a = menu->addAction(XdgIcon::fromTheme(QStringLiteral("process-stop")), tr("Close group"));
+    menu->setAttribute(Qt::WA_AlwaysStackOnTop);
+    menu->setWindowFlag(Qt::Popup);
+    QAction *a = menu->addAction(tr("Unmi&nimize group"));
+    a->setEnabled(false);
+    connect(a, &QAction::triggered, this, &LXQtTaskGroup::unminimizeGroup);
+    QAction *b = menu->addAction(tr("Mi&nimize group"));
+    b->setEnabled(false);
+    connect(b, &QAction::triggered, this, &LXQtTaskGroup::minimizeGroup);
+    for (LXQtTaskButton *button : qAsConst(mButtonHash) )
+    {
+        KWindowInfo info(button->windowId(), NET::WMState | NET::XAWMState);
+        if (info.actionSupported(NET::ActionMinimize))
+            (info.isMinimized() ? a : b)->setEnabled(true);
+    }
+    a = menu->addAction(XdgIcon::fromTheme(QStringLiteral("process-stop")), tr("Close group"));
     connect(a,    &QAction::triggered, this, &LXQtTaskGroup::closeGroup);
     connect(menu, &QMenu::aboutToHide, this, [this] {
         mPreventPopup = false;
     });
-    menu->setGeometry(plugin()->panel()->calculatePopupWindowPos(mapToGlobal(event->pos()), menu->sizeHint()));
+    menu->setGeometry(plugin()->panel()->calculatePopupWindowPos(parentTaskBar()->mapToGlobal(pos()),
+                                                                 menu->sizeHint()));
+    setMenu(menu);
     plugin()->willShowWindow(menu);
     menu->show();
+    menu->raise();
+}
+
+/************************************************
+
+ ************************************************/
+void LXQtTaskGroup::unminimizeGroup()
+{
+    for (LXQtTaskButton *button : qAsConst(mButtonHash) )
+        if (button->isOnDesktop(KWindowSystem::currentDesktop()))
+            KWindowSystem::unminimizeWindow(button->windowId());
+}
+
+/************************************************
+
+ ************************************************/
+void LXQtTaskGroup::minimizeGroup()
+{
+    for (LXQtTaskButton *button : qAsConst(mButtonHash) )
+        if (button->isOnDesktop(KWindowSystem::currentDesktop()))
+            button->minimizeApplication();
 }
 
 /************************************************
@@ -621,11 +658,15 @@ bool LXQtTaskGroup::onWindowChanged(WId window, NET::Properties prop, NET::Prope
         buttons.append(mButtonHash.value(window));
 
     // If group is based on that window properties must be changed also on button group
-    if (window == windowId())
+    if (KWindowInfo(windowId(), {}).win() == window)
         buttons.append(this);
 
     if (!buttons.isEmpty())
     {
+        // window changed type
+        if (prop.testFlag(NET::WMWindowType))
+            needsRefreshVisibility = true;
+
         // if class is changed the window won't belong to our group any more
         if (parentTaskBar()->isGroupingEnabled() && prop2.testFlag(NET::WM2WindowClass))
         {

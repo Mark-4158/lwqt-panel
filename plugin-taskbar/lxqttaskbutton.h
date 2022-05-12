@@ -33,6 +33,7 @@
 
 #include <QToolButton>
 #include <QProxyStyle>
+#include <netwm_def.h>
 #include "../panel/ilxqtpanel.h"
 
 class QPainter;
@@ -93,7 +94,9 @@ public slots:
     void shadeApplication();
     void unShadeApplication();
     void closeApplication();
+    void closeProcess();
     void moveApplicationToDesktop();    
+    void finishMoveResize(QObject *);
     void moveApplication();
     void resizeApplication();
     void setApplicationLayer();
@@ -125,6 +128,7 @@ private:
     void moveApplicationToPrevNextDesktop(bool next);
     void moveApplicationToPrevNextMonitor(bool next);
     WId mWindow;
+    NET::Direction mWMMoveResize;
     bool mUrgencyHint;
     QPoint mDragStartPosition;
     Qt::Corner mOrigin;

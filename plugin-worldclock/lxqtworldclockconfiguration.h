@@ -35,6 +35,8 @@
 #include <QFont>
 #include <QMap>
 
+#define FORMAT_DEFAULT_CUSTOM "'<b><samp>'HH:mm:ss'</samp></b><br/><font size=\"-2\">'ddd, d MMM yyyy'<br/>'TT'</font>'"
+
 namespace Ui {
     class LXQtWorldClockConfiguration;
 }

@@ -606,6 +606,7 @@ void LXQtMainMenu::setButtonIcon()
                 .arg(settings()->value(QLatin1String("icon"), QLatin1String(LXQT_GRAPHICS_DIR"/helix.svg")).toString()));
     } else
     {
+        mButton.setIcon(XdgIcon::fromTheme(QLatin1Literal("applications-other")));
         mButton.setStyleSheet(QString());
     }
 }
