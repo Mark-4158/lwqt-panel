@@ -102,8 +102,8 @@ void LXQtWorldClockConfiguration::loadSettings()
 
     QString formatType = settings().value(QLatin1String("formatType"), QString()).toString();
     QString dateFormatType = settings().value(QLatin1String("dateFormatType"), QString()).toString();
-    bool advancedManual = settings().value(QLatin1String("useAdvancedManualFormat"), false).toBool();
-    mManualFormat = settings().value(QLatin1String("customFormat"), tr("'<b>'HH:mm:ss'</b><br/><font size=\"-2\">'ddd, d MMM yyyy'<br/>'TT'</font>'")).toString();
+    bool advancedManual = settings().value(QLatin1String("useAdvancedManualFormat"), true).toBool();
+    mManualFormat = std::move(settings().value(QLatin1String("customFormat"), tr(FORMAT_DEFAULT_CUSTOM)).toString());
 
     // backward compatibility
     if (formatType == QLatin1String("custom"))

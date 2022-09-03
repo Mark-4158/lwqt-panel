@@ -193,7 +193,7 @@ void LXQtWorldClock::settingsChanged()
 
     QString formatType = _settings->value(QLatin1String("formatType"), QString()).toString();
     QString dateFormatType = _settings->value(QLatin1String("dateFormatType"), QString()).toString();
-    bool advancedManual = _settings->value(QLatin1String("useAdvancedManualFormat"), false).toBool();
+    bool advancedManual = _settings->value(QLatin1String("useAdvancedManualFormat"), true).toBool();
 
     // backward compatibility
     if (formatType == QLatin1String("custom"))
@@ -241,7 +241,7 @@ void LXQtWorldClock::settingsChanged()
     bool dateLongNames = _settings->value(QLatin1String("dateLongNames"), false).toBool();
 
     // advanced
-    QString customFormat = _settings->value(QLatin1String("customFormat"), tr("'<b>'HH:mm:ss'</b><br/><font size=\"-2\">'ddd, d MMM yyyy'<br/>'TT'</font>'")).toString();
+    QString &&customFormat = _settings->value(QLatin1String("customFormat"), tr(FORMAT_DEFAULT_CUSTOM)).toString();
 
     if (advancedManual)
         mFormat = customFormat;

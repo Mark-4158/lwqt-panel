@@ -1,4 +1,4 @@
-set(PROJECT lxqt-panel)
+set(PROJECT lwqt-panel)
 
 set(PRIV_HEADERS
     panelpluginsmodel.h
@@ -64,7 +64,7 @@ file(GLOB CONFIG_FILES resources/*.conf)
 
 add_definitions(-DCOMPILE_LXQT_PANEL)
 
-set(PLUGIN_DESKTOPS_DIR "${CMAKE_INSTALL_FULL_DATAROOTDIR}/lxqt/${PROJECT}")
+set(PLUGIN_DESKTOPS_DIR "${CMAKE_INSTALL_FULL_DATAROOTDIR}/lxqt/${PROJECT_NAME}")
 add_definitions(-DPLUGIN_DESKTOPS_DIR=\"${PLUGIN_DESKTOPS_DIR}\")
 
 if (WITH_SCREENSAVER_FALLBACK)
